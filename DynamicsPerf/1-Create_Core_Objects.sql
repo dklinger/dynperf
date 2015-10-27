@@ -10229,7 +10229,7 @@ END
 
 DECLARE @jobId BINARY(16)
 EXEC @ReturnCode =  msdb.dbo.sp_add_job @job_name=N'DYNPERF_Default_Trace_Start', 
-		@enabled=0, 
+		@enabled=1, 
 		@notify_level_eventlog=0, 
 		@notify_level_email=0, 
 		@notify_level_netsend=0, 
@@ -10395,7 +10395,7 @@ END
 
 DECLARE @jobId BINARY(16)
 EXEC @ReturnCode =  msdb.dbo.sp_add_job @job_name=N'DYNPERF_Long_Duration_Trace', 
-		@enabled=0, 
+		@enabled=1, 
 		@notify_level_eventlog=0, 
 		@notify_level_email=0,
 		@notify_level_netsend=0, 
@@ -10812,92 +10812,6 @@ GO
 USE [msdb]
 GO
 
-/****** Object:  Job [DYNPERF_Purge_SYSTRACETABLESQL_AX]    Script Date: 10/19/2011 16:21:00 ******/
-BEGIN TRANSACTION
-DECLARE @ReturnCode INT
-SELECT @ReturnCode = 0
-/****** Object:  JobCategory [[Uncategorized (Local)]]]    Script Date: 10/19/2011 16:21:00 ******/
-IF NOT EXISTS (SELECT name FROM msdb.dbo.syscategories WHERE name=N'[Uncategorized (Local)]' AND category_class=1)
-BEGIN
-EXEC @ReturnCode = msdb.dbo.sp_add_category @class=N'JOB', @type=N'LOCAL', @name=N'[Uncategorized (Local)]'
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-
-END
-
-DECLARE @jobId BINARY(16)
-EXEC @ReturnCode =  msdb.dbo.sp_add_job @job_name=N'DYNPERF_Purge_SYSTRACETABLESQL_AX', 
-		@enabled=0, 
-		@notify_level_eventlog=0, 
-		@notify_level_email=0, 
-		@notify_level_netsend=0, 
-		@notify_level_page=0, 
-		@delete_level=0, 
-		@description=N'This job is designed to purge data from a Dynamics AX database.  It will purges data from SYSTRACETABLE and SYSTRACETABLESQL.', 
-		@category_name=N'[Uncategorized (Local)]', 
-		@owner_login_name=N'sa', @job_id = @jobId OUTPUT
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-/****** Object:  Step [Purge_SYSTRACETABLE]    Script Date: 10/19/2011 16:21:01 ******/
-EXEC @ReturnCode = msdb.dbo.sp_add_jobstep @job_id=@jobId, @step_name=N'Purge_SYSTRACETABLE', 
-		@step_id=1, 
-		@cmdexec_success_code=0, 
-		@on_success_action=1, 
-		@on_success_step_id=0, 
-		@on_fail_action=2, 
-		@on_fail_step_id=0, 
-		@retry_attempts=0, 
-		@retry_interval=0, 
-		@os_run_priority=0, @subsystem=N'TSQL', 
-		@command=N'DELETE FROM SYSTRACETABLE WHERE CREATEDDATETIME<=
-DATEADD(DD,-14, GETDATE())
-
-GO
-
-DELETE FROM SYSTRACETABLESQL WHERE CREATEDDATETIME<=
-DATEADD(DD,-14, GETDATE())
-
-GO
-
-
-DELETE SP FROM SYSTRACETABLESQLEXECPLAN SP 
-WHERE NOT EXISTS (SELECT RECID FROM SYSTRACETABLE ST WHERE ST.RECID=SP.TRACERECID)
-GO
-
-
-DELETE SF FROM SYSTRACETABLESQLTABREF SF
- WHERE NOT EXISTS (SELECT RECID FROM SYSTRACETABLE ST WHERE ST.RECID=SF.TRACERECID)
-
-', 
-		@database_name=N'master', 
-		@flags=0
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-EXEC @ReturnCode = msdb.dbo.sp_update_job @job_id = @jobId, @start_step_id = 1
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-EXEC @ReturnCode = msdb.dbo.sp_add_jobschedule @job_id=@jobId, @name=N'Daily', 
-		@enabled=1, 
-		@freq_type=4, 
-		@freq_interval=1, 
-		@freq_subday_type=1, 
-		@freq_subday_interval=0, 
-		@freq_relative_interval=0, 
-		@freq_recurrence_factor=0, 
-		@active_start_date=20111019, 
-		@active_end_date=99991231, 
-		@active_start_time=10000, 
-		@active_end_time=235959
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-EXEC @ReturnCode = msdb.dbo.sp_add_jobserver @job_id = @jobId, @server_name = N'(local)'
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-COMMIT TRANSACTION
-GOTO EndSave
-QuitWithRollback:
-    IF (@@TRANCOUNT > 0) ROLLBACK TRANSACTION
-EndSave:
-
-GO
-
-USE [msdb]
-GO
-
 /****** Object:  Job [DYNPERF_Capture_Stats_Baseline]    Script Date: 03/18/2014 21:27:20 ******/
 IF  EXISTS (SELECT job_id FROM msdb.dbo.sysjobs_view WHERE name = N'DYNPERF_Capture_Stats_Baseline')
 EXEC msdb.dbo.sp_delete_job @job_name=N'DYNPERF_Capture_Stats_Baseline', @delete_unused_schedule=1
@@ -10981,154 +10895,6 @@ IF EXISTS (SELECT job_id
     
 
 GO 
-
-USE [msdb]
-GO
-
-/****** Object:  Job [DYNPERF_Set_AX_User_Trace_on]    Script Date: 04/01/2014 08:20:00 ******/
-IF  EXISTS (SELECT job_id FROM msdb.dbo.sysjobs_view WHERE name = N'DYNPERF_Set_AX_User_Trace_on')
-EXEC msdb.dbo.sp_delete_job @job_name=N'DYNPERF_Set_AX_User_Trace_on', @delete_unused_schedule=1
-GO
-
-USE [msdb]
-GO
-
-/****** Object:  Job [DYNPERF_Set_AX_User_Trace_on]    Script Date: 04/01/2014 08:20:00 ******/
-BEGIN TRANSACTION
-DECLARE @ReturnCode INT
-SELECT @ReturnCode = 0
-/****** Object:  JobCategory [[Uncategorized (Local)]]]    Script Date: 04/01/2014 08:20:00 ******/
-IF NOT EXISTS (SELECT name FROM msdb.dbo.syscategories WHERE name=N'[Uncategorized (Local)]' AND category_class=1)
-BEGIN
-EXEC @ReturnCode = msdb.dbo.sp_add_category @class=N'JOB', @type=N'LOCAL', @name=N'[Uncategorized (Local)]'
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-
-END
-
-DECLARE @jobId BINARY(16)
-EXEC @ReturnCode =  msdb.dbo.sp_add_job @job_name=N'DYNPERF_Set_AX_User_Trace_on', 
-		@enabled=0, 
-		@notify_level_eventlog=0, 
-		@notify_level_email=0, 
-		@notify_level_netsend=0, 
-		@notify_level_page=0, 
-		@delete_level=0, 
-		@description=N'Turn on the long running user trace functionality inside Dynamics AX', 
-		@category_name=N'[Uncategorized (Local)]', 
-		@owner_login_name=N'sa', @job_id = @jobId OUTPUT
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-/****** Object:  Step [Set Trace On]    Script Date: 04/01/2014 08:20:00 ******/
-EXEC @ReturnCode = msdb.dbo.sp_add_jobstep @job_id=@jobId, @step_name=N'Set Trace On', 
-		@step_id=1, 
-		@cmdexec_success_code=0, 
-		@on_success_action=1, 
-		@on_success_step_id=0, 
-		@on_fail_action=2, 
-		@on_fail_step_id=0, 
-		@retry_attempts=0, 
-		@retry_interval=0, 
-		@os_run_priority=0, @subsystem=N'TSQL', 
-		@command=N'USE DynamicsPerf
-
-EXEC SET_AX_SQLTRACE
-  @DATABASE_NAME = ''dbname'',
-  @QUERY_TIME_LIMIT = 5000', 
-		@database_name=N'DynamicsPerf', 
-		@flags=0
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-EXEC @ReturnCode = msdb.dbo.sp_update_job @job_id = @jobId, @start_step_id = 1
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-EXEC @ReturnCode = msdb.dbo.sp_add_jobschedule @job_id=@jobId, @name=N'Weekly', 
-		@enabled=1, 
-		@freq_type=8, 
-		@freq_interval=1, 
-		@freq_subday_type=1, 
-		@freq_subday_interval=0, 
-		@freq_relative_interval=0, 
-		@freq_recurrence_factor=1, 
-		@active_start_date=20140401, 
-		@active_end_date=99991231, 
-		@active_start_time=40000, 
-		@active_end_time=235959
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-EXEC @ReturnCode = msdb.dbo.sp_add_jobserver @job_id = @jobId, @server_name = N'(local)'
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-COMMIT TRANSACTION
-GOTO EndSave
-QuitWithRollback:
-    IF (@@TRANCOUNT > 0) ROLLBACK TRANSACTION
-EndSave:
-
-GO
-
-USE [msdb]
-GO
-
-/****** Object:  Job [DYNPERF_Set_AX_User_Trace_off]    Script Date: 04/01/2014 08:21:23 ******/
-IF  EXISTS (SELECT job_id FROM msdb.dbo.sysjobs_view WHERE name = N'DYNPERF_Set_AX_User_Trace_off')
-EXEC msdb.dbo.sp_delete_job @job_name=N'DYNPERF_Set_AX_User_Trace_off', @delete_unused_schedule=1
-GO
-
-USE [msdb]
-GO
-
-/****** Object:  Job [DYNPERF_Set_AX_User_Trace_off]    Script Date: 04/01/2014 08:21:23 ******/
-BEGIN TRANSACTION
-DECLARE @ReturnCode INT
-SELECT @ReturnCode = 0
-/****** Object:  JobCategory [[Uncategorized (Local)]]]    Script Date: 04/01/2014 08:21:23 ******/
-IF NOT EXISTS (SELECT name FROM msdb.dbo.syscategories WHERE name=N'[Uncategorized (Local)]' AND category_class=1)
-BEGIN
-EXEC @ReturnCode = msdb.dbo.sp_add_category @class=N'JOB', @type=N'LOCAL', @name=N'[Uncategorized (Local)]'
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-
-END
-
-DECLARE @jobId BINARY(16)
-EXEC @ReturnCode =  msdb.dbo.sp_add_job @job_name=N'DYNPERF_Set_AX_User_Trace_off', 
-		@enabled=0, 
-		@notify_level_eventlog=0, 
-		@notify_level_email=0, 
-		@notify_level_netsend=0, 
-		@notify_level_page=0, 
-		@delete_level=0, 
-		@description=N'Turn off the long running SQL Trace functionality in Dynamics AX', 
-		@category_name=N'[Uncategorized (Local)]', 
-		@owner_login_name=N'sa', @job_id = @jobId OUTPUT
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-/****** Object:  Step [Turn Off]    Script Date: 04/01/2014 08:21:23 ******/
-EXEC @ReturnCode = msdb.dbo.sp_add_jobstep @job_id=@jobId, @step_name=N'Turn Off', 
-		@step_id=1, 
-		@cmdexec_success_code=0, 
-		@on_success_action=1, 
-		@on_success_step_id=0, 
-		@on_fail_action=2, 
-		@on_fail_step_id=0, 
-		@retry_attempts=0, 
-		@retry_interval=0, 
-		@os_run_priority=0, @subsystem=N'TSQL', 
-		@command=N'USE DynamicsPerf
-
-EXEC SET_AX_SQLTRACE
-  @DATABASE_NAME = ''dbname'',
-  @TRACE_STATUS = ''OFF'' 
-', 
-		@database_name=N'DynamicsPerf', 
-		@flags=0
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-EXEC @ReturnCode = msdb.dbo.sp_update_job @job_id = @jobId, @start_step_id = 1
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-EXEC @ReturnCode = msdb.dbo.sp_add_jobserver @job_id = @jobId, @server_name = N'(local)'
-IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
-COMMIT TRANSACTION
-GOTO EndSave
-QuitWithRollback:
-    IF (@@TRANCOUNT > 0) ROLLBACK TRANSACTION
-EndSave:
-
-GO
-
-
 
 /********************** END OF SQL JOBS ***********************************/
 
@@ -11252,31 +11018,6 @@ exec msdb.dbo.sp_update_jobstep
     @job_name = N'DYNPERF_Capture_Stats_Baseline',
     @step_id = 1,
     @command = @SQL
-    
-SET @SQL = 'USE DynamicsPerf
-
-EXEC SET_AX_SQLTRACE
-  @DATABASE_NAME = ' + QUOTENAME(@DYNAMICSDB,'''')  +',
-  @QUERY_TIME_LIMIT = 5000'
-
-exec msdb.dbo.sp_update_jobstep
-    @job_name = N'DYNPERF_Set_AX_User_Trace_on',
-    @step_id = 1,
-    @command = @SQL
-    
-  
-SET @SQL = 'USE DynamicsPerf
-
-EXEC SET_AX_SQLTRACE
-  @DATABASE_NAME = ' + QUOTENAME(@DYNAMICSDB,'''')  +',
-  @QUERY_TIME_LIMIT = 5000,
-  @TRACE_STATUS = ''OFF'''
-
-exec msdb.dbo.sp_update_jobstep
-    @job_name = N'DYNPERF_Set_AX_User_Trace_off',
-    @step_id = 1,
-    @command = @SQL
-    
 
 SET @SQL = 'EXEC SP_CAPTURESTATS_PERF @DATABASE_NAME = ' +QUOTENAME(@DYNAMICSDB,'''') 
 
@@ -11304,3 +11045,4 @@ PRINT '-- PLEASE VISIT HTTP://BLOGS.MSDN.COM/AXINTHEFIELD  for details on this t
 PRINT '-- 												'
 PRINT '-----------------------------------------------------------------------------------------'
 
+EXEC sp_start_job @job_name = 'DYNPERF_Capture_Stats_Baseline'
